@@ -1,0 +1,22 @@
+name: Example
+radio:
+  freq: 868960000
+  deviation: 5200
+modem:
+  modulation: GFSK
+  channel_bw: 63000
+  data_rate: 4840
+  num_preamble: 24
+  sync_word: 0xe9cd
+  manchester: true
+  fec: false
+  whitening: false
+  pkt_len: 13
+commands:
+  - name: cmd1
+    desc: "Command One"
+    code: "1234567890123"
+  - name: cmd2
+    desc: "Command Two"
+    code: "4321567890123"
+  
