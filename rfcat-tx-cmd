@@ -10,6 +10,7 @@ import yaml
 import logging
 import argparse
 import os
+import sys
 import time
 import rflib
 
@@ -52,12 +53,12 @@ if __name__ == "__main__":
     else:
         # Load from directory
         for entry in os.scandir(args.dir):
-            print(entry.name)
             if entry.name.endswith('.yaml') and entry.is_file():
-                mcfg = load_manu_yaml(args.m)
+                mcfg = load_manu_yaml(entry.path)
+                name = mcfg['name'].lower()
                 manu = Manufacturer(mcfg)
 
-                manufacturers[mcfg.name] = manu
+                manufacturers[name] = manu
 
     rfcat = rflib.RfCat()
     time.sleep(0.1)
