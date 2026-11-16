@@ -6,24 +6,11 @@
 # @copyright Copyright © 2021 by Darwin Innovation Ltd. All Rights Reserved.
 #
 
-import yaml
 import logging
 import argparse
 import os
-import sys
-import time
-import rflib
 
-from rfcat_cli import *
-
-def load_manu_yaml(path):
-    logging.info(f"Loading {path}")
-
-    with open(path, 'r') as infile:
-        m = yaml.safe_load(infile)
-        return m
-
-    return None
+from rfcat_cli.tx import DEFAULT_MANUFACTURER_DIR, transmit_command
 
 
 if __name__ == "__main__":
@@ -38,38 +25,14 @@ if __name__ == "__main__":
     parser.add_argument("command")
 
     parser.add_argument("-m", "--manu", help="use a single manufacturer file")
-    parser.add_argument("-d", "--dir", help="set directory to search for manufacturer YAML files", default="/etc/rfcat-cli/manufacturers")
+    parser.add_argument("-d", "--dir", help="set directory to search for manufacturer YAML files", default=DEFAULT_MANUFACTURER_DIR)
     args = parser.parse_args()
 
-    manufacturers = dict()
+    transmit_command(
+        args.manufacturer,
+        args.command,
+        manufacturer_dir=args.dir,
+        manu_path=args.manu,
+    )
 
-    if args.manu:
-        # Load single manufacturer file
-        mcfg = load_manu_yaml(args.manu)
-        name = mcfg['name'].lower()
-        manu = Manufacturer(mcfg)
-
-        manufacturers[name] = manu
-    else:
-        # Load from directory
-        for entry in os.scandir(args.dir):
-            if entry.name.endswith('.yaml') and entry.is_file():
-                mcfg = load_manu_yaml(entry.path)
-                name = mcfg['name'].lower()
-                manu = Manufacturer(mcfg)
-
-                manufacturers[name] = manu
-
-    rfcat = rflib.RfCat()
-    time.sleep(0.1)
-    rfcat.setModeIDLE()
-    time.sleep(0.1)
-
-    manu = manufacturers[args.manufacturer.lower()]
-    manu.setup(rfcat)
-    time.sleep(0.1)
-    manu.tx_cmd(rfcat, args.command.lower())
-
-    rfcat.setModeIDLE()
-    time.sleep(0.1)
-    sys.exit()
+    os._exit(0)
