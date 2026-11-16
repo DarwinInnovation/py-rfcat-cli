@@ -1,0 +1,29 @@
+name: RFCat Transmitter
+version: "0.1.0"
+slug: rfcat_transmitter
+description: Send sub-GHz commands from a YARD Stick One / RFCat dongle as Home Assistant buttons
+url: https://github.com/DarwinInnovation/py-rfcat-cli
+arch:
+  - aarch64
+  - amd64
+init: false
+startup: application
+boot: auto
+# rflib talks to the dongle through libusb, so it needs /dev/bus/usb rather than a serial port.
+usb: true
+services:
+  - mqtt:need
+map:
+  - addon_config:rw
+options:
+  manufacturers_dir: /config/manufacturers
+  topic_prefix: rfcat
+  discovery_prefix: homeassistant
+  tx_timeout: 30
+  verbose: false
+schema:
+  manufacturers_dir: str
+  topic_prefix: str
+  discovery_prefix: str
+  tx_timeout: int(5,300)
+  verbose: bool
