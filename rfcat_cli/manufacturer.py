@@ -132,6 +132,16 @@ class RepeatSettings(SettingsObject):
     self.delay = 100
     self.radio_on = False
 
+    if cfg is not None:
+      self._parse_cfg(cfg)
+
+  def _parse_cfg(self, cfg):
+    self._parse_settings(cfg, [
+      "count",
+      "delay",
+      "radio_on",
+    ])
+
 class Manufacturer:
 
   def __init__(self, cfg: dict):

@@ -29,7 +29,7 @@ Run these after code changes:
 
 ```bash
 source .venv/bin/activate
-python -m unittest tests/test_service.py
+python -m unittest discover -s tests
 ```
 
 Optional smoke checks:

@@ -8,7 +8,7 @@ Lightweight command and HTTP service wrappers around `rfcat` for transmitting pr
 - `rfcat-tx-service`: HTTP service exposing `GET /tx/<manufacturer>/<cmd>`
 - `rfcat_cli/`: core Python modules for loading manufacturer configs and transmitting
 - `manufacturers/`: example manufacturer YAML files
-- `tests/`: unit tests for the HTTP route behavior
+- `tests/`: unit tests for the HTTP service and manufacturer config
 - `ecosystem.config.js`: PM2 config for running the service
 - `etc/udev/rules.d/20-rfcat.rules`: udev rules granting the `dialout` group access to RFCat devices
 
@@ -104,7 +104,7 @@ The PM2 config checks the user is in `dialout`, activates `.venv` and serves `ma
 
 ```bash
 source .venv/bin/activate
-python -m unittest tests/test_service.py
+python -m unittest discover -s tests
 ```
 
 ## Notes
