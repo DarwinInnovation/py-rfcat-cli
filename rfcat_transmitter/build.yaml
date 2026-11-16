@@ -2,4 +2,5 @@ build_from:
   aarch64: ghcr.io/home-assistant/aarch64-base-python:3.13-alpine3.22
   amd64: ghcr.io/home-assistant/amd64-base-python:3.13-alpine3.22
 args:
-  RFCAT_CLI_REF: main
+  # Temporary so the add-on can be tested from this branch; set back to main (or a tag) before merging.
+  RFCAT_CLI_REF: ha-addon
