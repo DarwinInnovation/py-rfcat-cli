@@ -1,0 +1,7 @@
+#!/usr/bin/env python3
+
+from rfcat_cli.service import main
+
+
+if __name__ == "__main__":
+    main()
