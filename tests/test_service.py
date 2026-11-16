@@ -125,6 +125,70 @@ class ServiceRouteTests(unittest.TestCase):
         self.assertIn("Ignoring TLS handshake on plain HTTP port", logs)
         self.assertNotIn("Bad request version", logs)
 
+    def _assert_server_closes(self, handler_cls, payload):
+        server = ThreadingHTTPServer(("127.0.0.1", 0), handler_cls)
+        thread = threading.Thread(target=server.handle_request)
+        thread.start()
+
+        try:
+            client = socket.create_connection(server.server_address, timeout=2)
+            try:
+                client.sendall(payload)
+                # Times out (and errors) unless the server closes the connection without waiting for a newline.
+                self.assertEqual(client.recv(4096), b"")
+            finally:
+                client.close()
+        finally:
+            thread.join(timeout=2)
+            server.server_close()
+
+    def test_tls_handshake_without_newline_is_closed(self):
+        handler_cls = create_handler(transmit=lambda *_args, **_kwargs: None)
+        self._assert_server_closes(handler_cls, b"\x16\x03\x01\x00\x05hello")
+
+    def test_incomplete_request_times_out(self):
+        handler_cls = create_handler(transmit=lambda *_args, **_kwargs: None)
+        self.assertIsNotNone(handler_cls.timeout)
+        handler_cls.timeout = 0.2
+        self._assert_server_closes(handler_cls, b"GET /tx/neet")
+
+    def test_concurrent_requests_transmit_one_at_a_time(self):
+        active = []
+        overlaps = []
+        lock = threading.Lock()
+
+        def transmit(*_args, **_kwargs):
+            with lock:
+                active.append(1)
+                if len(active) > 1:
+                    overlaps.append(len(active))
+            time.sleep(0.1)
+            with lock:
+                active.pop()
+
+        server = ThreadingHTTPServer(("127.0.0.1", 0), create_handler(transmit=transmit))
+        server_thread = threading.Thread(target=server.serve_forever)
+        server_thread.start()
+
+        def request():
+            with socket.create_connection(server.server_address, timeout=2) as client:
+                client.sendall(b"GET /tx/neet/door_unlock HTTP/1.1\r\nHost: localhost\r\n\r\n")
+                while client.recv(4096):
+                    pass
+
+        try:
+            clients = [threading.Thread(target=request) for _ in range(3)]
+            for client in clients:
+                client.start()
+            for client in clients:
+                client.join(timeout=5)
+        finally:
+            server.shutdown()
+            server_thread.join(timeout=2)
+            server.server_close()
+
+        self.assertEqual(overlaps, [])
+
 
 class ServiceCliTransmitTests(unittest.TestCase):
     @mock.patch("rfcat_cli.service.subprocess.run")
@@ -147,6 +211,7 @@ class ServiceCliTransmitTests(unittest.TestCase):
                 "/tmp/manufacturers",
                 "-m",
                 "/tmp/neet.yaml",
+                "--",
                 "neet",
                 "door_unlock",
             ],

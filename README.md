@@ -62,13 +62,16 @@ Useful options:
 ## Run the HTTP service
 
 ```bash
-./rfcat-tx-service --host 0.0.0.0 --port 8080 -d manufacturers -v
+./rfcat-tx-service --port 8080 -d manufacturers -v
 ```
 
-Each request runs `rfcat-tx-cmd` in a subprocess, so the RFCat dongle is opened and released per transmission rather than held by the long-running service.
+Each request runs `rfcat-tx-cmd` in a subprocess, so the RFCat dongle is opened and released per transmission rather than held by the long-running service. Transmissions are serialised, so concurrent requests queue for the dongle.
+
+The service has no authentication and listens on `127.0.0.1` by default. Only pass `--host 0.0.0.0` (or a LAN address) on a trusted network, ideally with a firewall rule limiting which clients can reach the port.
 
 Useful options:
 
+- `--host` / `--port`: listen address (default `127.0.0.1:8080`)
 - `-d, --dir` / `-m, --manu`: as for `rfcat-tx-cmd`
 - `--tx-cli`: path to the `rfcat-tx-cmd` executable (defaults to the one in this repo)
 - `--tx-timeout`: seconds to wait for `rfcat-tx-cmd` before failing (default 30)
@@ -95,7 +98,7 @@ Expected success response:
 pm2 start ecosystem.config.js
 ```
 
-The PM2 config checks the user is in `dialout`, activates `.venv` and serves `manufacturers/` on port 8080.
+The PM2 config checks the user is in `dialout`, activates `.venv` and serves `manufacturers/` on `0.0.0.0:8080`, so it is reachable from the LAN. See the security note above.
 
 ## Run tests
 

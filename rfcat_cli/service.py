@@ -1,7 +1,9 @@
 import argparse
 import json
 import logging
+import socket
 import subprocess
+import threading
 from pathlib import Path
 from http.client import LineTooLong
 from http import HTTPStatus
@@ -11,6 +13,8 @@ from .tx import DEFAULT_MANUFACTURER_DIR, transmit_command
 
 
 DEFAULT_TX_CLI_PATH = Path(__file__).resolve().parent.parent / "rfcat-tx-cmd"
+DEFAULT_HOST = "127.0.0.1"
+REQUEST_READ_TIMEOUT = 10
 
 
 def _write_json(handler, status, payload):
@@ -40,7 +44,8 @@ def transmit_via_cli(
     cmd = [str(cli_path), "-d", manufacturer_dir]
     if manu_path:
         cmd.extend(["-m", manu_path])
-    cmd.extend([manufacturer, command])
+    # "--" stops route segments such as "--help" being parsed as CLI options.
+    cmd.extend(["--", manufacturer, command])
 
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, check=False, timeout=timeout)
@@ -57,9 +62,19 @@ def transmit_via_cli(
 
 
 def create_handler(transmit=transmit_command, manufacturer_dir=DEFAULT_MANUFACTURER_DIR, manu_path=None):
+    # Only one transmission may use the RFCat dongle at a time.
+    transmit_lock = threading.Lock()
+
     class TxHandler(BaseHTTPRequestHandler):
+        timeout = REQUEST_READ_TIMEOUT
+
         def handle_one_request(self):
             try:
+                # Peek before readline(): a TLS ClientHello may contain no newline and would block it.
+                if _looks_like_tls_handshake(self.connection.recv(3, socket.MSG_PEEK)):
+                    logging.debug("Ignoring TLS handshake on plain HTTP port from %s", self.address_string())
+                    self.close_connection = True
+                    return
                 self.raw_requestline = self.rfile.readline(65537)
                 if len(self.raw_requestline) > 65536:
                     self.requestline = ""
@@ -68,10 +83,6 @@ def create_handler(transmit=transmit_command, manufacturer_dir=DEFAULT_MANUFACTU
                     self.send_error(HTTPStatus.REQUEST_URI_TOO_LONG)
                     return
                 if not self.raw_requestline:
-                    self.close_connection = True
-                    return
-                if _looks_like_tls_handshake(self.raw_requestline):
-                    logging.debug("Ignoring TLS handshake on plain HTTP port from %s", self.address_string())
                     self.close_connection = True
                     return
                 if not self.parse_request():
@@ -105,12 +116,13 @@ def create_handler(transmit=transmit_command, manufacturer_dir=DEFAULT_MANUFACTU
                 return
 
             try:
-                transmit(
-                    manufacturer,
-                    command,
-                    manufacturer_dir=manufacturer_dir,
-                    manu_path=manu_path,
-                )
+                with transmit_lock:
+                    transmit(
+                        manufacturer,
+                        command,
+                        manufacturer_dir=manufacturer_dir,
+                        manu_path=manu_path,
+                    )
             except KeyError as exc:
                 _write_json(self, HTTPStatus.NOT_FOUND, {"error": str(exc)})
                 return
@@ -145,7 +157,7 @@ def create_handler(transmit=transmit_command, manufacturer_dir=DEFAULT_MANUFACTU
 
 
 def serve(
-    host="0.0.0.0",
+    host=DEFAULT_HOST,
     port=8080,
     manufacturer_dir=DEFAULT_MANUFACTURER_DIR,
     manu_path=None,
@@ -174,7 +186,11 @@ def _configure_logging(verbose=False):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--host", default="0.0.0.0")
+    parser.add_argument(
+        "--host",
+        default=DEFAULT_HOST,
+        help="address to listen on; the service is unauthenticated, so only expose it to trusted networks",
+    )
     parser.add_argument("--port", type=int, default=8080)
     parser.add_argument("-v", "--verbose", action="store_true", help="enable verbose debug logging")
     parser.add_argument("-m", "--manu", help="use a single manufacturer file")
