@@ -18,7 +18,7 @@ If `.venv` does not exist:
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
-python -m pip install pyyaml
+python -m pip install pyyaml paho-mqtt
 python -m pip install -r ../rfcat/requirements.txt
 python -m pip install -e ../rfcat
 ```
@@ -43,4 +43,6 @@ Optional smoke checks:
 
 - Keep service routing behavior compatible with `GET /tx/<manufacturer>/<cmd>`.
 - Reuse `rfcat_cli/tx.py` for transmission logic instead of duplicating it.
+- `rfcat-mqtt-bridge` must keep transmitting through `rfcat-tx-cmd` subprocesses, like the HTTP service.
+- The Home Assistant add-on lives in `rfcat_transmitter/`; bump its `version` in `config.yaml` when its behaviour changes.
 - Keep YAML manufacturer files in `manufacturers/` for local testing.

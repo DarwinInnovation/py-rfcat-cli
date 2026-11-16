@@ -6,6 +6,8 @@ Lightweight command and HTTP service wrappers around `rfcat` for transmitting pr
 
 - `rfcat-tx-cmd`: one-shot CLI transmitter
 - `rfcat-tx-service`: HTTP service exposing `GET /tx/<manufacturer>/<cmd>`
+- `rfcat-mqtt-bridge`: MQTT bridge that exposes each command as a Home Assistant button
+- `rfcat_transmitter/`: Home Assistant add-on wrapping the MQTT bridge (see `rfcat_transmitter/DOCS.md`)
 - `rfcat_cli/`: core Python modules for loading manufacturer configs and transmitting
 - `manufacturers/`: example manufacturer YAML files
 - `tests/`: unit tests for the HTTP service and manufacturer config
@@ -27,7 +29,7 @@ Use a local `.venv` in this repository. From the repo root:
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
-python -m pip install pyyaml
+python -m pip install pyyaml paho-mqtt
 python -m pip install -r ../rfcat/requirements.txt
 python -m pip install -e ../rfcat
 ```
@@ -99,6 +101,25 @@ pm2 start ecosystem.config.js
 ```
 
 The PM2 config checks the user is in `dialout`, activates `.venv` and serves `manufacturers/` on `0.0.0.0:8080`, so it is reachable from the LAN. See the security note above.
+
+## Run the MQTT bridge (Home Assistant)
+
+```bash
+./rfcat-mqtt-bridge --mqtt-host homeassistant.local --mqtt-user rfcat -d manufacturers -v
+```
+
+The password is read from `--mqtt-password` or `$RFCAT_MQTT_PASSWORD`. On connect it publishes
+Home Assistant MQTT discovery for one `button` per command, then transmits whenever a message
+arrives on `rfcat/tx/<manufacturer>/<cmd>`. Like the HTTP service, each transmission runs
+`rfcat-tx-cmd` in a subprocess and transmissions are serialised. Results are published to
+`rfcat/result`, and `rfcat/status` reports `online`/`offline`.
+
+## Home Assistant add-on
+
+This repository is also a Home Assistant add-on repository. Add
+`https://github.com/DarwinInnovation/py-rfcat-cli` under Settings → Add-ons → Add-on store →
+Repositories and install **RFCat Transmitter**. It runs the MQTT bridge with USB access to the
+dongle. See [`rfcat_transmitter/DOCS.md`](rfcat_transmitter/DOCS.md).
 
 ## Run tests
 
